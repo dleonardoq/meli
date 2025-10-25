@@ -14,3 +14,17 @@ type Product struct {
 	Brand          string         `json:"brand"`
 	InStock        bool           `json:"in_stock"`
 }
+
+type ComparisonRequest struct {
+	ProductIDs []string `json:"product_ids"`
+}
+
+type SuccessResponse struct {
+	Products []Product `json:"products"`
+	Count    int       `json:"count"`
+}
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+}

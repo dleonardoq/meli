@@ -7,9 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dleonardoq/meli/storage"
-
-	"github.com/gorilla/mux"
+	"github.com/dleonardoq/meli/orquestator"
 )
 
 func main() {
@@ -21,15 +19,7 @@ func main() {
 
 	logger.Println("Starting meli API")
 
-	dataPath := "data/products.json"
-	productStorage, err := storage.NewProduct(dataPath)
-	if err != nil {
-		logger.Fatalf("Failed to initialize product storage: %v", err)
-	}
-
-	logger.Printf("Loaded %d products from %s", productStorage.GetProductCount(), dataPath)
-
-	router := mux.NewRouter()
+	router := orquestator.Orquestator()
 
 	srv := &http.Server{
 		Handler:      router,
@@ -39,7 +29,7 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	logger.Println("Server started on ", *httpPort)
+	logger.Println("Server started on", *httpPort)
 
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Fatalf("Server failed to start: %v", err)
