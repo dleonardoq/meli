@@ -22,8 +22,8 @@ func NewProduct(filePath string) (*ProductStorage, error) {
 }
 
 func (s *ProductStorage) loadProducts() error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	data, err := os.ReadFile(s.filePath)
 	if err != nil {
@@ -37,6 +37,28 @@ func (s *ProductStorage) loadProducts() error {
 
 	for _, product := range products {
 		s.products[product.ID] = product
+	}
+
+	return nil
+}
+
+// SaveToFile persists all products in memory to the JSON file
+func (s *ProductStorage) SaveToFile() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	products := make([]models.Product, 0, len(s.products))
+	for _, product := range s.products {
+		products = append(products, product)
+	}
+
+	data, err := json.MarshalIndent(products, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling products: %w", err)
+	}
+
+	if err := os.WriteFile(s.filePath, data, 0644); err != nil {
+		return fmt.Errorf("error writing file: %w", err)
 	}
 
 	return nil
@@ -112,45 +134,42 @@ func (s *ProductStorage) GetProductCount() int {
 	return len(s.products)
 }
 
-func (s *ProductStorage) SaveProduct(product models.Product) string {
+func (s *ProductStorage) SaveProduct(product models.Product) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.products[product.ID] = product
 
-	return "{message: 'Product saved successfully'}"
+	return nil
 }
 
-func (s *ProductStorage) DeleteProduct(id string) (string, error) {
+func (s *ProductStorage) DeleteProduct(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.existsProduct(id) {
-		return "", fmt.Errorf("product not found")
+		return fmt.Errorf("product not found")
 	}
 
 	delete(s.products, id)
 
-	return "{message: 'Product deleted successfully'}", nil
+	return nil
 }
 
-func (s *ProductStorage) UpdateProduct(product models.Product) (string, error) {
+func (s *ProductStorage) UpdateProduct(product models.Product) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.existsProduct(product.ID) {
-		return "", fmt.Errorf("product not found")
+		return fmt.Errorf("product not found")
 	}
 
 	s.products[product.ID] = product
 
-	return "{message: 'Product updated successfully'}", nil
+	return nil
 }
 
 func (s *ProductStorage) existsProduct(id string) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	_, ok := s.products[id]
 	return ok
 }

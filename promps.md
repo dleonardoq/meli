@@ -1,0 +1,2 @@
+- How to store in-memory data in a json file when the server stops in golang, i'm using map[string]any
+- How can I make all my Go tests run from a single function?

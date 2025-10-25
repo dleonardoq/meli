@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,14 +14,31 @@ import (
 )
 
 var logger = log.New(os.Stdout, "[MELI-API] ", log.LstdFlags|log.Lshortfile)
-var store, err = storage.NewProduct("data/products.json")
+var store *storage.ProductStorage
+
+func init() {
+	var err error
+	store, err = storage.NewProduct("data/products.json")
+	if err != nil {
+		// Don't fatal in tests, just log the error
+		logger.Printf("Warning: Failed to initialize storage: %v", err)
+	}
+}
+
+// SetStorage allows tests to inject a custom storage instance
+func SetStorage(s *storage.ProductStorage) {
+	store = s
+}
+
+// SaveDataToDisk persists all in-memory data to the JSON file
+func SaveDataToDisk() error {
+	if store == nil {
+		return fmt.Errorf("storage not initialized")
+	}
+	return store.SaveToFile()
+}
 
 func GetAllProducts(w http.ResponseWriter, r *http.Request) {
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error creating storage"))
-		return
-	}
 
 	products := store.GetAllProducts()
 
@@ -36,11 +54,6 @@ func GetProductByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, "Error creating storage")
-		return
-	}
-
 	product, err := store.GetProductById(id)
 
 	if err != nil {
@@ -54,10 +67,6 @@ func GetProductByID(w http.ResponseWriter, r *http.Request) {
 func GetProductsByCategory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	category := vars["category"]
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, "Error creating storage")
-		return
-	}
 
 	products := store.GetProductsByCategory(category)
 
@@ -85,10 +94,6 @@ func CompareProducts(w http.ResponseWriter, r *http.Request) {
 
 	if len(request.ProductIDs) > 10 {
 		errorResponse(w, http.StatusBadRequest, "Cannot compare more than 10 products")
-		return
-	}
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, "Error creating storage")
 		return
 	}
 
@@ -129,6 +134,82 @@ func errorResponse(w http.ResponseWriter, code int, message string) {
 	if err := json.NewEncoder(w).Encode(errorResponse); err != nil {
 		logger.Printf("Error encoding JSON response: %v", err)
 	}
+}
+
+func CreateProduct(w http.ResponseWriter, r *http.Request) {
+	var product models.Product
+	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+		errorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	defer r.Body.Close()
+
+	if product.ID == "" {
+		errorResponse(w, http.StatusBadRequest, "Product ID is required")
+		return
+	}
+
+	if err := store.SaveProduct(product); err != nil {
+		errorResponse(w, http.StatusInternalServerError, "Failed to save product")
+		return
+	}
+
+	response := models.MutationResponse{
+		Message: "Product created successfully",
+		Product: &product,
+	}
+
+	jsonResponse(w, http.StatusCreated, response)
+}
+
+func UpdateProduct(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var product models.Product
+	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+		errorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	defer r.Body.Close()
+
+	product.ID = id
+
+	if err := store.UpdateProduct(product); err != nil {
+		if err.Error() == "product not found" {
+			errorResponse(w, http.StatusNotFound, "Product not found")
+		} else {
+			errorResponse(w, http.StatusInternalServerError, "Failed to update product")
+		}
+		return
+	}
+
+	response := models.MutationResponse{
+		Message: "Product updated successfully",
+		Product: &product,
+	}
+
+	jsonResponse(w, http.StatusOK, response)
+}
+
+func DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if err := store.DeleteProduct(id); err != nil {
+		if err.Error() == "product not found" {
+			errorResponse(w, http.StatusNotFound, "Product not found")
+		} else {
+			errorResponse(w, http.StatusInternalServerError, "Failed to delete product")
+		}
+		return
+	}
+
+	response := models.MutationResponse{
+		Message: "Product deleted successfully",
+	}
+
+	jsonResponse(w, http.StatusOK, response)
 }
 
 // respondWithJSON envía una respuesta exitosa en formato JSON

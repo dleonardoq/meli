@@ -23,8 +23,14 @@ type SuccessResponse struct {
 	Products []Product `json:"products"`
 	Count    int       `json:"count"`
 }
+
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
 	Code    int    `json:"code"`
+}
+
+type MutationResponse struct {
+	Message string  `json:"message"`
+	Product *Product `json:"product,omitempty"`
 }

@@ -3,7 +3,23 @@ package storage
 import (
 	"os"
 	"testing"
+
+	"github.com/dleonardoq/meli/models"
 )
+
+// TestAll runs all storage tests in a single master test function
+func TestAll(t *testing.T) {
+	t.Run("NewProductStorage", TestNewProductStorage)
+	t.Run("GetProductByID", TestGetProductByID)
+	t.Run("GetProductsByIDs", TestGetProductsByIDs)
+	t.Run("GetProductsByCategory", TestGetProductsByCategory)
+	t.Run("GetAllProducts", TestGetAllProducts)
+	t.Run("GetProductCount", TestGetProductCount)
+	t.Run("SaveProduct", TestSaveProduct)
+	t.Run("UpdateProduct", TestUpdateProduct)
+	t.Run("DeleteProduct", TestDeleteProduct)
+	t.Run("ConcurrentAccess", TestConcurrentAccess)
+}
 
 func TestNewProductStorage(t *testing.T) {
 	// Create temp file with test data
@@ -209,6 +225,296 @@ func TestGetProductsByCategory(t *testing.T) {
 	products = storage.GetProductsByCategory("NonExistent")
 	if len(products) != 0 {
 		t.Errorf("Expected 0 products in NonExistent category, got %d", len(products))
+	}
+}
+
+func TestGetAllProducts(t *testing.T) {
+	testData := `[
+		{
+			"id": "TEST001",
+			"name": "Test Product 1",
+			"image_url": "https://example.com/test1.jpg",
+			"description": "Test description 1",
+			"price": 99.99,
+			"currency": "USD",
+			"rating": 4.5,
+			"review_count": 100,
+			"specifications": {},
+			"category": "Electronics",
+			"brand": "TestBrand",
+			"in_stock": true
+		},
+		{
+			"id": "TEST002",
+			"name": "Test Product 2",
+			"image_url": "https://example.com/test2.jpg",
+			"description": "Test description 2",
+			"price": 149.99,
+			"currency": "USD",
+			"rating": 4.8,
+			"review_count": 200,
+			"specifications": {},
+			"category": "Computers",
+			"brand": "TestBrand",
+			"in_stock": false
+		}
+	]`
+
+	tmpFile, err := os.CreateTemp("", "test_products_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.Write([]byte(testData))
+	tmpFile.Close()
+
+	storage, _ := NewProduct(tmpFile.Name())
+
+	// Test getting all products
+	products := storage.GetAllProducts()
+	if len(products) != 2 {
+		t.Errorf("Expected 2 products, got %d", len(products))
+	}
+}
+
+func TestGetProductCount(t *testing.T) {
+	testData := `[
+		{
+			"id": "TEST001",
+			"name": "Test Product 1",
+			"image_url": "https://example.com/test1.jpg",
+			"description": "Test description 1",
+			"price": 99.99,
+			"currency": "USD",
+			"rating": 4.5,
+			"review_count": 100,
+			"specifications": {},
+			"category": "Electronics",
+			"brand": "TestBrand",
+			"in_stock": true
+		},
+		{
+			"id": "TEST002",
+			"name": "Test Product 2",
+			"image_url": "https://example.com/test2.jpg",
+			"description": "Test description 2",
+			"price": 149.99,
+			"currency": "USD",
+			"rating": 4.8,
+			"review_count": 200,
+			"specifications": {},
+			"category": "Computers",
+			"brand": "TestBrand",
+			"in_stock": false
+		}
+	]`
+
+	tmpFile, err := os.CreateTemp("", "test_products_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.Write([]byte(testData))
+	tmpFile.Close()
+
+	storage, _ := NewProduct(tmpFile.Name())
+
+	// Test product count
+	count := storage.GetProductCount()
+	if count != 2 {
+		t.Errorf("Expected count 2, got %d", count)
+	}
+}
+
+func TestSaveProduct(t *testing.T) {
+	testData := `[]`
+
+	tmpFile, err := os.CreateTemp("", "test_products_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.Write([]byte(testData))
+	tmpFile.Close()
+
+	storage, _ := NewProduct(tmpFile.Name())
+
+	// Test saving a new product
+	newProduct := models.Product{
+		ID:          "TEST001",
+		Name:        "New Test Product",
+		ImageURL:    "https://example.com/new.jpg",
+		Description: "New test description",
+		Price:       199.99,
+		Currency:    "USD",
+		Rating:      4.7,
+		ReviewCount: 50,
+		Category:    "Electronics",
+		Brand:       "NewBrand",
+		InStock:     true,
+	}
+
+	err = storage.SaveProduct(newProduct)
+	if err != nil {
+		t.Errorf("Failed to save product: %v", err)
+	}
+
+	// Verify product was saved
+	savedProduct, err := storage.GetProductById("TEST001")
+	if err != nil {
+		t.Errorf("Failed to retrieve saved product: %v", err)
+	}
+
+	if savedProduct.Name != "New Test Product" {
+		t.Errorf("Expected product name 'New Test Product', got '%s'", savedProduct.Name)
+	}
+
+	if storage.GetProductCount() != 1 {
+		t.Errorf("Expected count 1 after save, got %d", storage.GetProductCount())
+	}
+}
+
+func TestUpdateProduct(t *testing.T) {
+	testData := `[
+		{
+			"id": "TEST001",
+			"name": "Original Product",
+			"image_url": "https://example.com/test.jpg",
+			"description": "Original description",
+			"price": 99.99,
+			"currency": "USD",
+			"rating": 4.5,
+			"review_count": 100,
+			"specifications": {},
+			"category": "Electronics",
+			"brand": "TestBrand",
+			"in_stock": true
+		}
+	]`
+
+	tmpFile, err := os.CreateTemp("", "test_products_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.Write([]byte(testData))
+	tmpFile.Close()
+
+	storage, _ := NewProduct(tmpFile.Name())
+
+	// Test updating existing product
+	updatedProduct := models.Product{
+		ID:          "TEST001",
+		Name:        "Updated Product",
+		ImageURL:    "https://example.com/updated.jpg",
+		Description: "Updated description",
+		Price:       149.99,
+		Currency:    "USD",
+		Rating:      4.8,
+		ReviewCount: 150,
+		Category:    "Electronics",
+		Brand:       "UpdatedBrand",
+		InStock:     false,
+	}
+
+	err = storage.UpdateProduct(updatedProduct)
+	if err != nil {
+		t.Errorf("Failed to update product: %v", err)
+	}
+
+	// Verify product was updated
+	product, err := storage.GetProductById("TEST001")
+	if err != nil {
+		t.Errorf("Failed to retrieve updated product: %v", err)
+	}
+
+	if product.Name != "Updated Product" {
+		t.Errorf("Expected product name 'Updated Product', got '%s'", product.Name)
+	}
+
+	if product.Price != 149.99 {
+		t.Errorf("Expected price 149.99, got %f", product.Price)
+	}
+
+	// Test updating non-existent product
+	nonExistentProduct := models.Product{
+		ID:   "INVALID",
+		Name: "Non-existent",
+	}
+
+	err = storage.UpdateProduct(nonExistentProduct)
+	if err == nil {
+		t.Error("Expected error when updating non-existent product, got nil")
+	}
+}
+
+func TestDeleteProduct(t *testing.T) {
+	testData := `[
+		{
+			"id": "TEST001",
+			"name": "Test Product 1",
+			"image_url": "https://example.com/test1.jpg",
+			"description": "Test description 1",
+			"price": 99.99,
+			"currency": "USD",
+			"rating": 4.5,
+			"review_count": 100,
+			"specifications": {},
+			"category": "Electronics",
+			"brand": "TestBrand",
+			"in_stock": true
+		},
+		{
+			"id": "TEST002",
+			"name": "Test Product 2",
+			"image_url": "https://example.com/test2.jpg",
+			"description": "Test description 2",
+			"price": 149.99,
+			"currency": "USD",
+			"rating": 4.8,
+			"review_count": 200,
+			"specifications": {},
+			"category": "Computers",
+			"brand": "TestBrand",
+			"in_stock": false
+		}
+	]`
+
+	tmpFile, err := os.CreateTemp("", "test_products_*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.Write([]byte(testData))
+	tmpFile.Close()
+
+	storage, _ := NewProduct(tmpFile.Name())
+
+	// Test deleting existing product
+	err = storage.DeleteProduct("TEST001")
+	if err != nil {
+		t.Errorf("Failed to delete product: %v", err)
+	}
+
+	// Verify product was deleted
+	_, err = storage.GetProductById("TEST001")
+	if err == nil {
+		t.Error("Expected error when getting deleted product, got nil")
+	}
+
+	if storage.GetProductCount() != 1 {
+		t.Errorf("Expected count 1 after delete, got %d", storage.GetProductCount())
+	}
+
+	// Test deleting non-existent product
+	err = storage.DeleteProduct("INVALID")
+	if err == nil {
+		t.Error("Expected error when deleting non-existent product, got nil")
 	}
 }
 
