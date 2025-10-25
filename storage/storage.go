@@ -112,11 +112,45 @@ func (s *ProductStorage) GetProductCount() int {
 	return len(s.products)
 }
 
-func (s *ProductStorage) SaveProduct(product models.Product) error {
+func (s *ProductStorage) SaveProduct(product models.Product) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.products[product.ID] = product
 
-	return nil
+	return "{message: 'Product saved successfully'}"
+}
+
+func (s *ProductStorage) DeleteProduct(id string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.existsProduct(id) {
+		return "", fmt.Errorf("product not found")
+	}
+
+	delete(s.products, id)
+
+	return "{message: 'Product deleted successfully'}", nil
+}
+
+func (s *ProductStorage) UpdateProduct(product models.Product) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.existsProduct(product.ID) {
+		return "", fmt.Errorf("product not found")
+	}
+
+	s.products[product.ID] = product
+
+	return "{message: 'Product updated successfully'}", nil
+}
+
+func (s *ProductStorage) existsProduct(id string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	_, ok := s.products[id]
+	return ok
 }
