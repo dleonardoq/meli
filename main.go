@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dleonardoq/meli/handlers"
+	"github.com/dleonardoq/meli/middleware"
 	"github.com/dleonardoq/meli/orquestator"
 )
 
@@ -25,6 +26,9 @@ func main() {
 	logger.Println("Data will be saved to JSON on shutdown")
 
 	router := orquestator.Orquestator()
+
+	router.Use(middleware.LoggingMiddleware(logger))
+	router.Use(middleware.CorsMiddleware)
 
 	srv := &http.Server{
 		Handler:      router,
