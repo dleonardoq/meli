@@ -1,2 +1,6 @@
+github.com/RoseRocket/gopartial v0.0.0-20220419202939-ffee37028d8c h1:b3cOcT8bcHceHCI7PxF+ITWoQWbOuRoPlYtoYzl4o2Y=
+github.com/RoseRocket/gopartial v0.0.0-20220419202939-ffee37028d8c/go.mod h1:8QYKiLpoEfYjGkPDx/HQS2iNbY/4OD4LAiAomtza0X8=
 github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
 github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
+github.com/guregu/null v4.0.0+incompatible h1:4zw0ckM7ECd6FNNddc3Fu4aty9nTlpkkzH7dPn4/4Gw=
+github.com/guregu/null v4.0.0+incompatible/go.mod h1:ePGpQaN9cw0tj45IR5E5ehMvsFlLlQZAkkOXZurJ3NM=

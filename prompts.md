@@ -1,0 +1,5 @@
+- In Go, I have in-memory data stored in a map[string]any. How can I persist this data to a JSON file automatically when the server shuts down?
+- In Go, how can I execute all test functions from a single entry point or function, so that I can run them together programmatically instead of relying on go test?
+- Create a file that lists all my API endpoints with example requests and responses. The file should be ready to use as reference or documentation.
+- In a Go REST API built with Gorilla Mux, how can I partially update a JSON resource (for example, with a PATCH request) so that only the provided fields are updated, without replacing the entire object?
+- Is there any Go package or library that makes it easier to perform partial updates (PATCH) on structs or JSON data?

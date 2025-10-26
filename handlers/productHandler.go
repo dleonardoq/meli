@@ -10,6 +10,7 @@ import (
 	"github.com/dleonardoq/meli/models"
 	"github.com/dleonardoq/meli/storage"
 
+	"github.com/RoseRocket/gopartial"
 	"github.com/gorilla/mux"
 )
 
@@ -166,27 +167,50 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	var product models.Product
-	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+	// Get the existing product
+	existingProduct, err := store.GetProductById(id)
+	if err != nil {
+		errorResponse(w, http.StatusNotFound, "Product not found")
+		return
+	}
+
+	// Decode the fields to update
+	var updateData map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
 		errorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 	defer r.Body.Close()
 
-	product.ID = id
+	// Create a copy of the existing product
+	updatedProduct := existingProduct
 
-	if err := store.UpdateProduct(product); err != nil {
-		if err.Error() == "product not found" {
-			errorResponse(w, http.StatusNotFound, "Product not found")
-		} else {
-			errorResponse(w, http.StatusInternalServerError, "Failed to update product")
-		}
+	// Apply partial updates
+	_, err = gopartial.PartialUpdate(
+		&updatedProduct,
+		updateData,
+		"json",
+		nil,
+		nil,
+	)
+
+	if err != nil {
+		errorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid update data: %v", err))
+		return
+	}
+
+	// Ensure the ID hasn't been modified
+	updatedProduct.ID = id
+
+	// Update the product in storage
+	if err := store.UpdateProduct(updatedProduct); err != nil {
+		errorResponse(w, http.StatusInternalServerError, "Failed to update product")
 		return
 	}
 
 	response := models.MutationResponse{
 		Message: "Product updated successfully",
-		Product: &product,
+		Product: &updatedProduct,
 	}
 
 	jsonResponse(w, http.StatusOK, response)
